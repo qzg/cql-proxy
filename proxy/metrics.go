@@ -258,7 +258,7 @@ func handleSELECT(reqres *RequestResponse, keyspaceTableName string, timebucket 
 	req_size := reqres.req.raw.Header.BodyLength
 	res_size := reqres.res.Header.BodyLength
 	reqres_size := uint64(req_size) + uint64(res_size)
-	rrus := uint64(math.Ceil(float64(reqres_size) / float64(sm.config.UsageWruBytes)))
+	rrus := uint64(math.Ceil(float64(reqres_size) / float64(sm.config.UsageRruBytes)))
 
 	mr.select_count++
 	mr.select_size = mr.select_size + reqres_size
