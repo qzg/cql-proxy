@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/HdrHistogram/hdrhistogram-go"
+	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/google/uuid"
 	"github.com/procyon-projects/chrono"
 	"go.uber.org/zap"
@@ -190,9 +191,13 @@ func handleQuery(reqres *RequestResponse) {
 		query = msg.query
 	case *partialBatch:
 		reqres.req.client.proxy.logger.Debug("partialBatch not currently implemented")
+	case *message.Prepare:
+		reqres.req.client.proxy.logger.Info("Preparing Statement:")
+		fmt.Println(msg)
 	default:
 		reqres.req.client.proxy.logger.Error("Unknown message type")
 		fmt.Println(msg)
+		fmt.Printf("Message of type %T", msg)
 	}
 
 	if len(query) > 0 {
@@ -200,7 +205,7 @@ func handleQuery(reqres *RequestResponse) {
 		// UPDATE keyspace.table [USING] SET field=value, ...
 		// SELECT (*|fields|DISTINCT partition) FROM keyspace.table WHERE predicate=value AND ...
 		// DELETE [(fields...)] FROM keyspace.table [USING] WHERE predicate=value AND ...
-		find_tables := regexp.MustCompile(`(?i)(INTO|UPDATE|FROM)\s*([a-zA-Z0-9._]*)\s*`)
+		find_tables := regexp.MustCompile(`(?i)\s(INTO|UPDATE|FROM)\s\s*\\*\"*([a-zA-Z0-9._]*)\\*\"*\s*`)
 		sys_re := regexp.MustCompile(`^system`)
 		// query = strings.ReplaceAll(query, "\n", " ")
 		tables := find_tables.FindStringSubmatch(query)
@@ -211,6 +216,9 @@ func handleQuery(reqres *RequestResponse) {
 		} else if !strings.Contains(tables[2], ".") {
 			// if there's no dot in the table name, prepend the keyspace and a dot to the table name
 			keyspace := strings.ReplaceAll(reqres.req.keyspace, "\"", "")
+			if keyspace == "" {
+				keyspace = strings.ReplaceAll(reqres.req.client.keyspace, "\"", "")
+			}
 			keyspaceTableName = keyspace + "." + tables[2]
 		} else {
 			keyspaceTableName = tables[2]
