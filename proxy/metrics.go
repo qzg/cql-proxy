@@ -190,7 +190,20 @@ func handleQuery(reqres *RequestResponse) {
 	case *partialQuery:
 		query = msg.query
 	case *partialBatch:
-		reqres.req.client.proxy.logger.Debug("partialBatch not currently implemented")
+		reqres.req.client.proxy.logger.Debug("partialBatch currently being implemented")
+		// recursively call this function with an altered reqres containing each batch member
+		hold_queryOrIds := msg.queryOrIds
+		for _, batch := range hold_queryOrIds {
+			switch batch := batch.(type) {
+			case []uint8:
+				// prepared statement
+				reqres.req.msg = &partialExecute{[]byte(batch)}
+			case string:
+				// string statement
+				reqres.req.msg = &partialQuery{batch}
+			}
+			handleQuery(reqres)
+		}
 	case *message.Prepare:
 		reqres.req.client.proxy.logger.Info("Preparing Statement:")
 		fmt.Println(msg)
