@@ -3,5 +3,6 @@
 cql-proxy
 config.yml
 config2.yml
+config.vector.yml
 secure-connect-cvm.zip
 cvm-token.json

@@ -160,10 +160,12 @@ func (r *request) OnResult(raw *frame.RawFrame) {
 			r.done = true
 			r.rt = time.Since(r.st)
 			reqres := &RequestResponse{r, raw}
-			select {
-			// put to the channel; drop if the buffer is full; we should never block normal queries
-			case r.client.proxy.StatsManager.MessageFeed <- reqres:
-			default:
+			if r.client.proxy.config.TrackUsage {
+				select {
+				// put to the channel; drop if the buffer is full; we should never block normal queries
+				case r.client.proxy.StatsManager.MessageFeed <- reqres:
+				default:
+				}
 			}
 			r.sendRaw(raw)
 		}
