@@ -267,7 +267,7 @@ func (c *Cluster) mergeHosts(hosts []*Host) error {
 		
 		endpoints, err := c.config.Resolver.Resolve(c.ctx)
 		if err != nil {
-			return nil
+			return err
 		}
 		host.Endpoint = endpoints[len(endpoints)-1]
 	}
