@@ -295,6 +295,16 @@ The metrics tracking feature is not intended to run indefinitely.  It is intende
 
 ## Known issues
 
+Please be aware that CQL Proxy works downstream of the DataStax Astra billing engine and any metrics captured by CQL-Proxy are only intended to give an indication of the number of credits that are / may be used. There are some known limitations due to this separation
+If a read request involves server-side filtering or aggregation of data, the data is measured before the filtering or aggregation takes place. Some examples of queries where this can happen are:
+* Queries that use the ALLOW FILTERING clause.
+* Queries that use the COUNT function.
+* Queries that use the GROUP BY clause.
+* Queries that do not request all columns from a row be returned.
+In these cases the CQL-Proxy will only capture the data passed back to the client.
+
+CQL Proxy is similarly unable to understand the billing implication of the use of features like secondary indexes and SAI, or operations similar to ORDER BY ... LIMIT, or client pagination that abandons query results, or other more complex scenarios.
+
 ### Token-aware load balancing
 
 Drivers that use token-aware load balancing may print a warning or may not work when using cql-proxy. Because cql-proxy abstracts the backend cluster as a single endpoint this doesn't always work well with token-aware drivers that expect there to be at least "replication factor" number of nodes in the cluster. Many drivers print a warning (which can be ignored) and fallback to something like round-robin, but other drivers might fail with an error. For the drivers that fail with an error it is required that they disable token-aware or configure the round-robin load balancing policy.
