@@ -17,6 +17,7 @@ package proxy
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -63,6 +64,7 @@ type runConfig struct {
 	NumConns             int           `yaml:"num-conns" help:"Number of connection to create to each node of the backend cluster" default:"1" env:"NUM_CONNS"`
 	ProxyCertFile        string        `yaml:"proxy-cert-file" help:"Path to a PEM encoded certificate file with its intermediate certificate chain. This is used to encrypt traffic for proxy clients" env:"PROXY_CERT_FILE"`
 	ProxyKeyFile         string        `yaml:"proxy-key-file" help:"Path to a PEM encoded private key file. This is used to encrypt traffic for proxy clients" env:"PROXY_KEY_FILE"`
+	ClusterCAFile        string        `yaml:"cluster-ca-file" help:"Path to a PEM encoded file with CA certificates and their intermediate certificate chains. This is used to encrypt traffic between the proxy and the backend cluster" env:"CLUSTER_CA_FILE"`
 	RpcAddress           string        `yaml:"rpc-address" help:"Address to advertise in the 'system.local' table for 'rpc_address'. It must be set if configuring peer proxies" env:"RPC_ADDRESS"`
 	DataCenter           string        `yaml:"data-center" help:"Data center to use in system tables" env:"DATA_CENTER"`
 	Tokens               []string      `yaml:"tokens" help:"Tokens to use in the system tables. It's not recommended" env:"TOKENS"`
@@ -125,7 +127,23 @@ func Run(ctx context.Context, args []string) int {
 		cfg.Username = "token"
 		cfg.Password = cfg.AstraToken
 	} else if len(cfg.ContactPoints) > 0 {
-		resolver = proxycore.NewResolverWithDefaultPort(cfg.ContactPoints, cfg.Port)
+		var tlsConfig *tls.Config
+		if len(cfg.ClusterCAFile) > 0 { // Use proxy to cluster TLS
+			caCert, err := ioutil.ReadFile(cfg.ClusterCAFile)
+
+			if err != nil {
+				cliCtx.Fatalf("unable to load cluster CA file %s: %v", cfg.ClusterCAFile, err)
+			}
+			caCertPool := x509.NewCertPool()
+			caCertPool.AppendCertsFromPEM(caCert)
+
+			tlsConfig = &tls.Config{
+				RootCAs: caCertPool,
+				InsecureSkipVerify: true, // need to address this
+			}
+		}
+
+		resolver = proxycore.NewResolverWithDefaultPort(cfg.ContactPoints, cfg.Port, tlsConfig)
 	} else {
 		cliCtx.Errorf("must provide either bundle path, token, or contact points")
 		return 1
